@@ -1,0 +1,38 @@
+#! /usr/bin/env python3
+
+import sys, os, argparse
+try:
+    import pynwn
+except ImportError:
+    raise Exception("Can't resolve pynwn, did you run 'pip3 install -e dependencies/*'?")
+
+parser = argparse.ArgumentParser(description='Expand a NWN BIC file')
+parser.add_argument(
+    'file_path',         
+    help='The absolute or relative path to the BIC file'
+)
+args = parser.parse_args(sys.argv[1:])
+
+BASE_DIR = os.path.realpath(os.path.dirname(__file__))
+
+bic_abs_path = os.path.abspath(args.file_path)
+if not os.path.exists(bic_abs_path):
+    raise Exception("The file {} does not exist".format(bic_abs_path))
+
+container = pynwn.Container()
+container.add_file(bic_abs_path)
+character = pynwn.PlayerCharacter(os.path.basename(bic_abs_path), container)
+
+# This is the default feat.2da file, if the server has customized it this won't make any sense!
+feat_table = pynwn.TwoDA(os.path.join(BASE_DIR, '2da/feat.2da'))
+# 2DA files are 2-dimensional arrays, the first column 
+FEAT_DESCRIPTION_INDEX = 0
+
+def feat_formatter(feat_ids):    
+    return ', '.join([feat_table.get(i, FEAT_DESCRIPTION_INDEX) for i in feat_ids])
+
+for i, stats in enumerate(character.level_stats):
+    print(i+1)
+    for key, value in stats.__dict__.items():
+        formatted_value = feat_formatter(value) if key == 'feats' else value
+        print("    {} {}".format(key.ljust(15), formatted_value))
